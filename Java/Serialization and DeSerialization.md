@@ -174,5 +174,44 @@ private void readObject(ObjectInputStream in) throws IOException,
   public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException;
   ```
 
-  Just override those methods to provide your own protocol. Unlike the previous two serialization variations, nothing is provided for free here, though. That is, the protocol is entirely in your hands. Although it's the more difficult scenario, it's also the most controllable. An example situation for that alternate type of serialization: read and write PDF files with a Java application. If you know how to write and read PDF (the sequence of bytes required), you could provide the PDF-specific protocol in the `writeExternal` and `readExternal` methods.
+  Just override those methods to provide your own protocol. Unlike the previous two serialization variations, nothing is provided for free here, though. That is, the protocol is entirely in your hands. Although it's the more difficult scenario, it's also the most controllable. 
+  
+  ```java
+  class PersistentObject implements Externalizable {
+      int value1;
+      int value2;
+      String value3;
+      
+      public void writeObject(ObjectOutputStream out) throws IOException {
+          out.writeInt(value1);
+          out.writeInt(value2);
+          out.writeUTF(value3);
+      }
+      
+      public void readObject(ObjectInputStream in) throws IOException,     		
+      ClassNotFoundException {
+          this.value1 = in.readInt();
+          this.value2 = in.readInt();      
+          this.value3 = in.readUTF();
+      }
+      
+  }
+  ```
+  
+  Write and Read order should not change.
+  
+  
+  
+  **We can also use the transient keyword before the attributes to avoid from the serialization.  right ? Then in which case/scenario we should use externalize ??**
+  
+  With transient, the JVM won’t serialize the particular field but it’ll add up the field to file storage with the default value. That’s why it’s a good practice to use Externalizable in case of custom serialization.
+  
+  * When a class inherits from the *Serializable* interface, the JVM automatically collects all the fields from sub-classes as well and makes them serializable. Keep in mind that we can apply this to *Externalizable* as well. We just need to implement the read/write methods for every sub-class of the inheritance hierarchy.
 
+**Version Control**
+
+Imagine you create a class, instantiate it, and write it out to an object stream. That flattened object sits in the file system for some time. Meanwhile, you update the class file, perhaps adding a new field. What happens when you try to read in the flattened object?
+
+Well, the bad news is that an exception will be thrown -- specifically, the `java.io.InvalidClassException` -- because all persistent-capable classes are automatically given a unique identifier. If the identifier of the class does not equal the identifier of the flattened object, the exception will be thrown. However, if you really think about it, why should it be thrown just because I added a field? Couldn't the field just be set to its default value and then written out next time?
+
+Yes, but it takes a little code manipulation. The identifier that is part of all classes is maintained in a field called `serialVersionUID`. If you wish to control versioning, you simply have to provide the `serialVersionUID` field manually and ensure it is always the same, no matter what changes you make to the classfile. You can use a utility that comes with the JDK distribution called `serialver` to see what that code would be by default (it is just the hash code of the object by default).
